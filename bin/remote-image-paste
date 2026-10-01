@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Upload clipboard images to an SSH host without modifying the clipboard."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+import uuid
+
+# macOS Services do not inherit the interactive shell's Homebrew PATH.
+os.environ['PATH'] = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + os.environ.get('PATH', '')
+
+
+def load_config():
+    path = Path(os.environ.get('REMOTE_IMAGE_PASTE_CONFIG',
+                str(Path.home() / '.config/remote-image-paste/config.json')))
+    config = json.loads(path.read_text())
+    host = config['ssh_host']
+    directory = config.get('remote_directory', '/tmp/remote-image-paste')
+    marker = config['terminal_title_contains']
+    if not isinstance(host, str) or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.@-]*', host):
+        raise ValueError('ssh_host must be an SSH alias or user@hostname, without options')
+    if not isinstance(directory, str) or not re.fullmatch(r'/[A-Za-z0-9_./-]+', directory) or '..' in directory.split('/'):
+        raise ValueError('remote_directory must be an absolute path using letters, numbers, _, ., / or -')
+    if directory == '/' or directory.endswith('/'):
+        raise ValueError('remote_directory must name a directory without a trailing slash')
+    if not isinstance(marker, str) or not marker.strip():
+        raise ValueError('terminal_title_contains must be a nonempty, distinctive remote terminal title marker')
+    return host, directory, marker
+
+
+def upload(host, directory, image=None):
+    with tempfile.TemporaryDirectory(prefix='remote-image-paste-') as temporary:
+        png = str(Path(temporary) / 'clip.png')
+        if image:
+            subprocess.run(['sips', '-s', 'format', 'png', str(Path(image).resolve()), '--out', png],
+                           check=True, stdout=subprocess.DEVNULL)
+        else:
+            result = subprocess.run(['pngpaste', png], stderr=subprocess.DEVNULL)
+            if result.returncode:
+                # AppleScript uses this status ONLY for non-image clipboard fallback.
+                return None
+        remote = directory + '/clip-' + str(uuid.uuid4()) + '.png'
+        options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10']
+        subprocess.run(['ssh', '-T', *options, host,
+                        "umask 077; mkdir -p '" + directory + "'"], check=True)
+        # sftp's default upload mode can be broader than intended. Set mode on
+        # the local file explicitly before scp preserves it on the remote host.
+        os.chmod(png, 0o600)
+        subprocess.run(['scp', '-p', '-q', *options, png, host + ':' + remote], check=True)
+        return remote
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--matches-title', metavar='TITLE', help='exit 0 if TITLE matches the configured remote marker, 3 otherwise')
+    parser.add_argument('image', nargs='?', help='optional local image file (otherwise reads the clipboard)')
+    args = parser.parse_args()
+    try:
+        host, directory, marker = load_config()
+        if args.matches_title is not None:
+            return 0 if marker in args.matches_title else 3
+        remote = upload(host, directory, args.image)
+        if remote is None:
+            print('No image in clipboard', file=sys.stderr)
+            return 2
+        print(remote)
+        return 0
+    except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+        print('Remote image paste failed: ' + str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
