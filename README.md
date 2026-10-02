@@ -16,81 +16,50 @@ pastes the path into your focused terminal. OpenCode recognizes it as an image.
 
 - macOS and Ghostty installed at `/Applications/Ghostty.app`, with AppleScript support
   for `terminal id`, `input text`, and `send key`.
-- Python 3.9 or newer and [`pngpaste`](https://github.com/jcs/pngpaste).
-  With Homebrew: `brew install python pngpaste`.
-- A remote Linux machine accessible using noninteractive SSH authentication.
+- Python 3.9 or newer.
+- [`pngpaste`](https://github.com/jcs/pngpaste): `brew install pngpaste`.
+- A remote Linux machine reachable with noninteractive SSH authentication.
 - Remote OpenCode with image-path paste support. Zellij is the original tested
   multiplexer; it is not a dependency of the transfer helper.
 
-**Compatibility:** the original personal integration was verified through Ghostty,
-SSH, Zellij, and OpenCode, including multiple image attachments and text fallback.
-This packaged version has isolated automated tests and AppleScript compilation
-checks; it has not yet been verified end to end on a second machine. Exact version
-compatibility has not been established. Other terminals, Windows/Linux clients,
-and other coding agents are not currently supported/tested.
+## Install
 
-## Setup
-
-### 1. Choose an SSH host and a distinct terminal title marker
-
-Use an alias from `~/.ssh/config`, for example `devbox`. Check that it works:
+Pick one. All three produce the same `remote-image-paste` command.
 
 ```sh
-ssh -T -o BatchMode=yes devbox 'printf "SSH works\n"'
+# Homebrew (recommended on macOS)
+brew install jameselkins/tap/remote-image-paste
+
+# uv
+uv tool install remote-image-paste
+
+# pipx
+pipx install remote-image-paste
 ```
 
-Look at the Ghostty title when your remote OpenCode session is active. Choose a
-distinct substring that identifies this remote session, such as `devbox-work | `
-from a uniquely named Zellij session. The marker is literal and case-sensitive.
-OpenCode may change the pane title, so prefer a stable Zellij session prefix.
-Avoid generic markers like `main | ` that can also match a local session.
+A Homebrew formula lives in [`homebrew/remote-image-paste.rb`](homebrew/remote-image-paste.rb).
+To publish it, create a `homebrew-tap` repository and copy the formula to
+`Formula/remote-image-paste.rb`.
 
-**Title matching selects where images are pasted, not where they are uploaded.**
-All matched terminals use the one configured SSH destination. Make sure that
-marker only identifies sessions on that destination, with OpenCode ready to
-receive an attachment. This tool cannot determine which remote program is active.
-
-### 2. Install
-
-From this repository:
+Then set it up for your machine:
 
 ```sh
-python3 install.py --ssh-host devbox --title-contains 'devbox-work | '
+remote-image-paste --ssh-host devbox --title-contains 'devbox-work | '
 ```
 
-The installer creates:
+This verifies SSH access, then installs the helper, AppleScript bridge, Service,
+and configuration. Uninstall with `remote-image-paste --uninstall`.
 
-| Location | Purpose |
-| --- | --- |
-| `~/Library/Application Support/remote-image-paste/` | Upload helper and Ghostty bridge |
-| `~/Library/Services/Remote Image Paste.workflow` | Ghostty-only macOS Service |
-| `~/.config/remote-image-paste/config.json` | Your local SSH destination and title marker |
-
-It doesn't alter SSH or Ghostty configuration. It refuses to overwrite existing
-installation files or configuration.
-
-### 3. Assign Control-V
-
-1. Open **System Settings → Keyboard → Keyboard Shortcuts → Services**.
-2. Find **Remote Image Paste** (usually under General), enable it, and assign **Control-V**.
-3. Check that Ghostty has no conflicting explicit `ctrl+v` action and that no other
-   macOS Service uses the same shortcut in Ghostty. Disable the old shortcut if
-   migrating from a personal version of this integration.
-4. If the Service doesn't appear, quit and reopen Ghostty. You can also look under
-   **Ghostty → Services → Remote Image Paste**.
-5. Allow macOS automation access to Ghostty when prompted.
+**One manual step remains:** System Settings → Keyboard → Keyboard Shortcuts →
+Services → enable **Remote Image Paste** and assign **Control-V**. macOS owns
+keyboard shortcut registration, so it cannot be scripted. Disable any other
+Service already using Control-V in Ghostty first.
 
 Command-V keeps its normal Ghostty behavior.
 
-### 4. Paste a screenshot
-
-Capture an image to the clipboard with **Command-Control-Shift-4**. Focus the
-remote OpenCode prompt and press **Control-V**. It should show an `[Image N]`
-attachment. Then copy some text and check that it pastes only once.
-
 ## Configuration
 
-Edit `~/.config/remote-image-paste/config.json`; changes apply on the next paste:
+`~/.config/remote-image-paste/config.json`, editable at any time:
 
 ```json
 {
@@ -101,20 +70,29 @@ Edit `~/.config/remote-image-paste/config.json`; changes apply on the next paste
 ```
 
 `ssh_host` accepts a plain SSH alias or `user@hostname`. Use `~/.ssh/config` for
-ports, keys, jump hosts, and other options. `remote_directory` must be an absolute
-path containing only letters, digits, underscores, dots, slashes, or hyphens.
-Spaces, shell syntax, parent traversal, and trailing slashes are rejected.
+ports, keys, and jump hosts. `--remote-directory` accepts an absolute path built
+from letters, digits, `_`, `.`, `/`, and `-`; shell syntax, spaces, and parent
+traversal are rejected.
 
-For manual upload, run:
+**Choosing `terminal_title_contains`:** this decides which terminals get image
+pasting, not where images go. Use a distinctive substring of your remote
+terminal's title, such as `devbox-work | ` from a uniquely named Zellij session.
+It is literal and case-sensitive. OpenCode can rewrite the pane title, so prefer a
+stable Zellij session prefix. Avoid generic values like `main | ` that also match
+a local session.
+
+This tool cannot detect which remote program is running. Make sure the marker only
+matches sessions on the configured host that are ready to accept an attachment.
+
+## Manual use
 
 ```sh
-python3 bin/remote-image-paste             # clipboard image
-python3 bin/remote-image-paste ./shot.jpg  # converts a local image to PNG
+remote-image-paste              # clipboard image; prints the remote path
+remote-image-paste ./shot.jpg   # converts a local image to PNG first
 ```
 
-Both print a bare remote path. Paste that path into remote OpenCode to attach it.
-For a separate configuration file, set `REMOTE_IMAGE_PASTE_CONFIG` when invoking
-the helper manually. The Service uses the default configuration.
+Paste the printed path into remote OpenCode to attach it. Set
+`REMOTE_IMAGE_PASTE_CONFIG` to use an alternative config file.
 
 ## How it works
 
@@ -126,56 +104,67 @@ Control-V → Ghostty-only macOS Service → capture focused terminal ID and tit
       └─ text  → input clipboard text once
 ```
 
-The original terminal ID is retained across the upload, so switching Ghostty tabs
-doesn't redirect the paste. The image is transferred over your existing SSH
-connection settings. Temporary local files are cleaned up even on failure;
-uploaded files remain on the remote machine until you remove them or `/tmp` is
-cleared. No automatic remote cleanup runs. Upload errors produce a notification
-instead of falling back to a text paste.
+The terminal is captured before the upload, so switching Ghostty tabs mid-upload
+cannot redirect the paste. Installation writes a launcher that calls the
+installed console script, so upgrades through any package manager keep working
+without reinstalling the Service. Temporary local files are cleaned up on success
+and failure. Uploaded files remain on the remote host until removed or `/tmp` is
+cleared; there is no automatic remote cleanup.
+
+Errors are reported with exit statuses rather than silent fallbacks:
+`0` matched remote terminal, `1` failure, `2` no image in clipboard (paste text
+instead), `3` not the configured remote terminal (send original Control-V).
 
 ## Troubleshooting
 
-- **Nothing happens:** try the Service from Ghostty's menu first. Check its shortcut
-  and macOS Automation permission. Python must be available in `/opt/homebrew/bin`,
-  `/usr/local/bin`, or `/usr/bin` for the Service.
-- **Local Ctrl-V behavior instead of an attachment:** the terminal title didn't
-  contain your configured marker. Check the active OpenCode/Zellij title.
-- **SSH fails:** run the SSH check above and the manual helper. Authentication must
-  work without a password prompt. The helper uses a ten-second connection timeout;
-  stalled transfers can still take longer.
-- **A path appears without an image attachment:** confirm the destination matches
-  this terminal and your OpenCode version recognizes pasted image paths.
-- **Duplicate text:** check for another Service or Ghostty keybinding handling Ctrl-V.
-- **Image goes to an unexpected pane:** don't change the active Zellij pane during
-  an upload. Ghostty's terminal ID identifies the whole terminal, not a Zellij pane.
+- **Nothing happens.** Run it from Ghostty → Services first. Check the shortcut
+  and macOS Automation permission for Ghostty. `remote-image-paste` must be on
+  the `PATH` your shell uses to launch the Service.
+- **Local Ctrl-V behavior instead of an attachment.** The terminal title did not
+  contain your marker. Check the live title in your remote OpenCode/Zellij session.
+- **SSH failures.** `remote-image-paste` uses `BatchMode=yes` with a 10-second
+  connection timeout, so it never waits on a password prompt. A stalled transfer
+  can still take longer. Verify with
+  `ssh -T -o BatchMode=yes devbox 'printf ready'`.
+- **A path appears without an image attachment.** Confirm the terminal matches
+  your configured host and that your OpenCode version recognizes pasted image paths.
+- **Duplicate text.** Another Service or Ghostty keybinding is also handling Control-V.
+- **Image lands in the wrong pane.** Don't switch the active Zellij pane during an
+  upload. The Ghostty terminal ID identifies a terminal, not a Zellij pane.
 
 ## Uninstall
 
 ```sh
-python3 install.py --uninstall
+remote-image-paste --uninstall     # or: brew uninstall remote-image-paste
 ```
 
-This removes the scripts and Service. Remove its shortcut in System Settings if
-it remains listed. Configuration and remote uploads are retained. To reinstall,
-move or remove `~/.config/remote-image-paste/config.json` first; copy any settings
-you want to keep into the new configuration. No other paste utilities are removed.
+Removes the helper and Service, and keeps your configuration. Remove the
+shortcut in System Settings if still listed. To reinstall over a retained
+config, delete `~/.config/remote-image-paste/config.json` first.
 
 ## Development
 
-No Python packages are required. Run the isolated tests:
+No third-party Python packages are needed to run the tests:
 
 ```sh
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests
 ```
 
-Tests mock clipboard and SSH commands and install into a temporary home directory.
-They don't change your clipboard, hotkeys, installed Service, or remote machine.
-For a real end-to-end check, follow setup step 4 and verify that repeated images
-attach separately, text pastes once, local Control-V still works, and a failed SSH
-upload shows an error without inserting text.
+Tests mock clipboard and SSH commands and install into a temporary home
+directory, so they never touch your clipboard, shortcuts, installed Service, or
+remote machine.
 
-Contributions with tested Ghostty/OpenCode/macOS versions or improved targeting
-are welcome. Please include reproduction steps and redact private hostnames/keys.
+**Compatibility:** the original personal integration was verified end to end
+through Ghostty, SSH, Zellij, and OpenCode, including multiple image attachments,
+text fallback, and duplicate-paste fixes. This packaged version has automated
+tests, and install, launch, configuration, Service plists, and AppleScript
+compilation were verified on macOS with `uv`. It has **not** been verified end to
+end against a live remote host or a second machine, and exact Ghostty, macOS,
+OpenCode, and Python version compatibility is not established. Other terminals,
+Windows/Linux clients, and other coding agents are unsupported.
+
+Contributions with tested version combinations or improved terminal targeting are
+welcome. Please include reproduction steps and redact private hostnames and keys.
 
 ## License
 

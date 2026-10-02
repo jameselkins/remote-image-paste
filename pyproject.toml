@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "remote-image-paste"
+version = "0.1.0"
+description = "Paste clipboard images into remote OpenCode sessions over SSH from macOS Ghostty"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+keywords = ["opencode", "ghostty", "zellij", "ssh", "clipboard", "macos"]
+classifiers = [
+  "Environment :: MacOS X",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Terminals",
+]
+dependencies = []
+
+[project.scripts]
+remote-image-paste = "remote_image_paste.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/jameselkins/remote-image-paste"
+Issues = "https://github.com/jameselkins/remote-image-paste/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/remote_image_paste"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE", "homebrew"]
