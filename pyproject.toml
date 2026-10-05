@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "remote-image-paste"
-version = "0.1.0"
+version = "0.2.0"
 description = "Paste clipboard images into remote OpenCode sessions over SSH from macOS Ghostty"
 readme = "README.md"
 requires-python = ">=3.9"
