@@ -152,14 +152,22 @@ Tests mock clipboard and SSH commands and install into a temporary home
 directory, so they never touch your clipboard, shortcuts, installed Service, or
 remote machine.
 
-**Compatibility:** the original personal integration was verified end to end
-through Ghostty, SSH, Zellij, and OpenCode, including multiple image attachments,
-text fallback, and duplicate-paste fixes. This packaged version has automated
-tests, and install, launch, configuration, Service plists, and AppleScript
-compilation were verified on macOS with `uv`. It has **not** been verified end to
-end against a live remote host or a second machine, and exact Ghostty, macOS,
-OpenCode, and Python version compatibility is not established. Other terminals,
-Windows/Linux clients, and other coding agents are unsupported.
+## Compatibility
+
+**Verified:** a bracketed paste of a remote image path into OpenCode produces a
+real `[Image N]` attachment. Tested against OpenCode 1.18.34 and Zellij 0.45.1 on
+Linux, and separately with OpenCode driven directly in a pty. A real 3840x2160
+image was uploaded over SSH to a live host, arriving with `0600` permissions
+under a unique UUID filename. Install, launcher, Service plists, AppleScript
+compilation, and uninstall were verified on macOS via `uv`. 30 tests pass.
+
+**Not verified:** the macOS Services keyboard shortcut layer. Ghostty was not
+running during testing, so the AppleScript that captures the focused terminal and
+injects the remote path has not been exercised against a live Ghostty window.
+Installing the Service and pressing Control-V still needs a manual check. Exact
+macOS, Ghostty, Python, and OpenCode version compatibility is otherwise not
+pinned. Other terminals, Windows/Linux clients, and other coding agents are
+unsupported.
 
 Contributions with tested version combinations or improved terminal targeting are
 welcome. Please include reproduction steps and redact private hostnames and keys.

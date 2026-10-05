@@ -276,6 +276,18 @@ class CLITests(unittest.TestCase):
             self.assertEqual(status, cli.NO_IMAGE_STATUS)
             self.assertIn("No image in clipboard", err)
 
+    def test_explicit_image_path_is_never_treated_as_install(self):
+        # Regression: a manual upload with a file argument was misrouted to
+        # install and aborted with "install requires --ssh-host".
+        with patch.object(upload, "upload", return_value="/tmp/remote-image-paste/clip-9.png") as uploader, \
+                patch.object(service, "install") as installer:
+            status, out, _err = self.run_cli(["/tmp/some screenshot.png"])
+        self.assertEqual(status, 0)
+        self.assertEqual(out.strip(), "/tmp/remote-image-paste/clip-9.png")
+        uploader.assert_called_once()
+        self.assertEqual(uploader.call_args.args[2], "/tmp/some screenshot.png")
+        installer.assert_not_called()
+
     def test_upload_failure_is_status_one_not_text_fallback(self):
         with patch.object(upload, "upload", side_effect=subprocess.CalledProcessError(255, "scp")):
             status, _out, err = self.run_cli([])

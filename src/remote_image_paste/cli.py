@@ -106,15 +106,16 @@ def main(argv=None):
             return command_uninstall(args, parser)
         if args.matches_title is not None:
             return command_matches_title(args, parser)
-        if args.image is None and not (args.ssh_host or args.title_contains):
+        # An explicit image path is always an upload, never an install request.
+        if args.image is None and (args.ssh_host or args.title_contains):
             blocked = _require_macos()
             if blocked:
                 return blocked
-            return command_upload(args, parser)
+            return command_install(args, parser)
         blocked = _require_macos()
         if blocked:
             return blocked
-        return command_install(args, parser)
+        return command_upload(args, parser)
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         return _fail(error)
 
