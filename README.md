@@ -24,12 +24,7 @@ pastes the path into your focused terminal. OpenCode recognizes it as an image.
 
 ## Install
 
-Pick one. All three produce the same `remote-image-paste` command.
-
 ```sh
-# Homebrew (recommended on macOS)
-brew install jameselkins/tap/remote-image-paste
-
 # uv
 uv tool install remote-image-paste
 
@@ -37,9 +32,12 @@ uv tool install remote-image-paste
 pipx install remote-image-paste
 ```
 
-A Homebrew formula lives in [`homebrew/remote-image-paste.rb`](homebrew/remote-image-paste.rb).
-To publish it, create a `homebrew-tap` repository and copy the formula to
-`Formula/remote-image-paste.rb`.
+No Homebrew tap exists yet. A formula is provided in
+[`homebrew/remote-image-paste.rb`](homebrew/remote-image-paste.rb) for anyone who
+wants to package it, but `brew install` is not currently advertised as supported.
+
+Both package managers above install from GitHub and produce the same
+`remote-image-paste` command. `brew install .` works from a local clone too.
 
 Then set it up for your machine:
 
@@ -135,7 +133,7 @@ instead), `3` not the configured remote terminal (send original Control-V).
 ## Uninstall
 
 ```sh
-remote-image-paste --uninstall     # or: brew uninstall remote-image-paste
+remote-image-paste --uninstall
 ```
 
 Removes the helper and Service, and keeps your configuration. Remove the
