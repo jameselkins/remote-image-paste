@@ -25,19 +25,21 @@ pastes the path into your focused terminal. OpenCode recognizes it as an image.
 ## Install
 
 ```sh
+# Homebrew
+brew tap jameselkins/tap
+brew trust jameselkins/tap     # Homebrew 7 requires trusting third-party taps
+brew install remote-image-paste
+
 # uv
-uv tool install remote-image-paste
+uv tool install git+https://github.com/jameselkins/remote-image-paste
 
 # pipx
-pipx install remote-image-paste
+pipx install git+https://github.com/jameselkins/remote-image-paste
 ```
 
-No Homebrew tap exists yet. A formula is provided in
-[`homebrew/remote-image-paste.rb`](homebrew/remote-image-paste.rb) for anyone who
-wants to package it, but `brew install` is not currently advertised as supported.
-
-Both package managers above install from GitHub and produce the same
-`remote-image-paste` command. `brew install .` works from a local clone too.
+All three install the same `remote-image-paste` command. The Homebrew formula
+lives in [jameselkins/homebrew-tap](https://github.com/jameselkins/homebrew-tap)
+and pulls the tagged release tarball.
 
 Then set it up for your machine:
 
@@ -46,7 +48,8 @@ remote-image-paste --ssh-host devbox --title-contains 'devbox-work | '
 ```
 
 This verifies SSH access, then installs the helper, AppleScript bridge, Service,
-and configuration. Uninstall with `remote-image-paste --uninstall`.
+and configuration. Uninstall with `remote-image-paste --uninstall`, or
+`brew uninstall remote-image-paste` if you installed with Homebrew.
 
 **One manual step remains:** System Settings → Keyboard → Keyboard Shortcuts →
 Services → enable **Remote Image Paste** and assign **Control-V**. macOS owns
@@ -168,6 +171,12 @@ Installing the Service and pressing Control-V still needs a manual check. Exact
 macOS, Ghostty, Python, and OpenCode version compatibility is otherwise not
 pinned. Other terminals, Windows/Linux clients, and other coding agents are
 unsupported.
+
+**Packaging verified:** the Homebrew formula passes `brew audit --strict`,
+installs from the tagged tarball with checksum verification, passes `brew test`,
+and retains the AppleScript resource inside its virtualenv. `uv tool install` was
+verified in a sandbox `HOME`, covering install, launcher, Service plists,
+AppleScript compilation, and uninstall.
 
 Contributions with tested version combinations or improved terminal targeting are
 welcome. Please include reproduction steps and redact private hostnames and keys.

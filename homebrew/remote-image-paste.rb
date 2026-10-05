@@ -4,14 +4,15 @@ class RemoteImagePaste < Formula
   desc "Paste clipboard images into remote OpenCode sessions over SSH from macOS Ghostty"
   homepage "https://github.com/jameselkins/remote-image-paste"
   url "https://github.com/jameselkins/remote-image-paste/archive/refs/tags/v0.2.0.tar.gz"
-  version "0.2.0"
+  sha256 "37bf597af375e283b64fb4c57e38e230562207cc0b39b766f1ef60f413e87378"
   license "MIT"
   head "https://github.com/jameselkins/remote-image-paste.git", branch: "main"
 
   depends_on "pngpaste"
+  depends_on "python@3.13"
 
   def install
-    virtualenv_install_with_resources
+    virtualenv_install_with_resources using: "python@3.13"
   end
 
   # Uploads need pngpaste, but the Service runs from a login-free context that
@@ -29,6 +30,9 @@ class RemoteImagePaste < Formula
   end
 
   test do
-    assert_match "requires macOS", shell_output("#{bin}/remote-image-paste --matches-title x 2>&1", 1)
+    # --version proves the console script and its virtualenv wrapper work.
+    assert_match version.to_s, shell_output("#{bin}/remote-image-paste --version")
+    # A missing config must fail cleanly rather than traceback or hang.
+    assert_match "failed", shell_output("#{bin}/remote-image-paste --matches-title anything 2>&1", 1)
   end
 end
